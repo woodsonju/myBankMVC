@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeLeaf.org"
+	xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-sprinsecurity4"
+	layout:decorator="template1">
+<!-- On dit à thymeleaf que cette page tu vas la décorée avec template1.html -->
+<head>
+<meta charset="UTF-8" />
+<title>My BANK</title>
+<link rel="stylesheet" type="text/css" href="../css/bootstrap.min.css" />
+<link rel="stylesheet" type="text/css" href="../css/style.css" />
+</head>
+<body>
+	<div layout:fragment="content">
+		<div class="col-md-6 col-sm-6 col-xs-6">
+			<div class="panel panel-primary">
+				<div class="panel-heading">Consultation d'un compte</div>
+				<div class="panel-body">
+					<form th:action="@{/consulterCompte}" method="get">
+						<div>
+							<label>Numéro du compte:</label>
+							<input type="text" name="numCpte" th:value="${numCpte}"/> 
+							<button type="submit" class="btn btn-primary">OK</button>
+						</div>
+					</form>
+					<!-- Pour afficher le message  d'une exception
+						on appelle la methode getMessage() ici on message -->
+					<div class="text-danger" th:if="${compteIntrouvableException}"   
+						th:text="${compteIntrouvableException}">
+					</div>
+				</div>
+			</div>
+			<div class="panel panel-primary" th:if="${compte}"> <!-- On affiche les div que si on a un compte, et qu'il existe dans le modèle-->
+				<div class="panel-heading">Informations sur le compte</div>
+				<div class="panel-body">
+					<div>
+						<label>Client:</label>
+						<label th:text="${compte.client.nom}"></label>
+					</div>
+					<div>
+						<label>Numéro du compte:</label>
+						<label th:text="${compte.numCompte}"></label>
+					</div>
+					<div>
+						<label>Solde:</label>
+						<label th:text="${compte.solde}"></label>
+					</div>
+					<div>
+						<label>Date de création:</label>
+						<label th:text="${compte.dateCreation}"></label>
+					</div>
+					<div>
+						<label>Type de compte:</label>
+						<label th:text="${compte.class.simpleName}"></label>
+						<!-- Objet.class.simpleName affiche le nom de la classe
+						CompteCourant ou CompteEpargne-->
+					</div>
+					<!-- Si compte est  un CompteCourant il affiche le découvert
+					Sinon si c'est un CompteEpargne il affiche le taux -->
+					<div th:if="${compte.class.simpleName == 'CompteCourant'}"> 
+						<label>Découvert:</label>
+						<label th:text="${compte.decouvert}"></label>
+					</div>
+					<div th:if="${compte.class.simpleName == 'CompteEpargne'}"> 
+						<label>Taux:</label>
+						<label th:text="${compte.taux}"></label>
+					</div>
+
+				</div>
+			</div>
+		</div>
+		<div class="col-md-6 col-sm-6 col-xs-6"> 
+			<!-- sec:authorize="hasRole('ROLE_ADMIN') : Ce div ne sera pas afficher pour 
+			les personnes qui n'ont pas le rôle de ADMIN
+			Pour l'utiliser importer dans le pom.xml : thymeleaf-extras-springsecurity4
+			Et sur ce page ajouter : xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-sprinsecurity4"-->
+			<div sec:authorize="hasRole('ROLE_ADMIN')"><!-- On ajoute le prefixe car Spring security ajoute toujours le prefixe ROLE -->
+				<div class="panel panel-primary" th:if="${compte}">	<!-- On affiche les div que si on a un compte, et qu'il existe dans le modèle-->
+					<div class="panel-heading">Opérations sur le compte</div>
+						<div class="panel-body">
+							<form th:action="@{/saveOperation}" method="post">
+								<div>
+									<label>Compte:</label>
+									<input type="hidden" name="numCpte" th:value="${numCpte}"/> <!-- Le numéro de compte est un chmaps caché -->
+									<!-- Si on veut afficher la valeur du champs caché -->
+									<label th:text="${numCpte}"></label>
+								</div>
+								<div>
+									<input type="radio" name="typeOperation" value="versement" 
+										checked="checked"
+										onchange="document.getElementById('forVirement').style.display='none'"/>
+									<label>Versement</label> <br />
+									<input type="radio" name="typeOperation" value="retrait"
+									onchange="document.getElementById('forVirement').style.display='none'"/>
+									<label>Retrait</label> <br />
+									<input type="radio" name="typeOperation" value="virement"
+										onchange="document.getElementById('forVirement').style.display='block'"/>
+									<label>Virement</label> <br />
+								</div>
+								<div id="forVirement" style="display:none"> 
+									<label>Versement vers:</label>
+									<input type="text" name="numCpte2"/>
+								</div>
+								<div>
+									<label>Montant:</label>
+									<input type="text" name="montant" th:value="${montant}"/>
+								</div>
+								<!-- # On fait un réfence à un objet. 
+									Quand thymeleaf s'execute il le fait un contexte d'une servlet
+								 -->
+								<div class="text-danger" 
+									th:text="${#httpServletRequest.getParameter('compteIntrouvableException')}">
+								</div>
+								<div class="text-danger"  
+									th:text="${#httpServletRequest.getParameter('soldeInsuffisantException')}">
+								</div>
+								<div class="text-danger"  
+									th:text="${#httpServletRequest.getParameter('virementMemeCompteException')}">
+								</div>
+								<button class="btn btn-primary" type="submit">Save</button>
+							</form>
+						</div>
+				</div>
+			</div>
+			<div class="panel panel-primary" th:if="${compte}">
+				<div class="panel-heading">Liste des opérations</div>
+				<div class="panel-body">
+					<table class="table table-striped">
+						<thead class="panel-heading">
+							<tr>
+								<th>Type Opération</th>
+								<th>Numéro Opération</th>
+								<th>Date Opération</th>
+								<th>Montant</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr th:each="op:${listOperations}">
+								<td th:text="${op.class.simpleName}"></td>
+								<td th:text="${op.numOperation}"></td>
+								<td th:text="${op.dateOperation}"></td>
+								<td th:text="${op.montant}"></td>
+							</tr>
+						</tbody>
+					</table>
+					<div class="container">
+					<ul class="nav nav-pills">
+						<li th:class="${pageCourante}==${status.index}?'active':''"
+							th:each="page, status:${pages}"> <!-- On parcourt le nombre de page -->
+							<!-- les liens (th:href) sont crées après th:text et th:each 
+							Pour une page on récupère le numCpte, la page et le size;
+							Cela va permettre de transferer ses informations vers le controleur
+							-->
+							<a th:href="@{/consulterCompte(numCpte=${numCpte},
+														page=${status.index}, 
+														size=${size})}"
+								th:text="${status.index}"></a>
+						</li>
+					</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
